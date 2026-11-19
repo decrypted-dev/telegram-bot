@@ -76,3 +76,59 @@ export function groupDigestEvents(events: readonly DecodedEvent[]): DigestGroup[
   }
   return groups;
 }
+
+export interface DigestPeriod {
+  /** Inclusive UTC start boundary in epoch milliseconds. */
+  startMs: number;
+  /** Exclusive UTC end boundary in epoch milliseconds. */
+  endMs: number;
+  /** ISO-8601 UTC timestamp for `startMs`. */
+  startIso: string;
+  /** ISO-8601 UTC timestamp for `endMs`. */
+  endIso: string;
+}
+
+export interface DigestExport {
+  /** Explicit UTC period boundaries `[startMs, endMs)` (start-inclusive, end-exclusive). */
+  period: DigestPeriod;
+  /** Grouped events within the period, preserving First-Seen insertion order. */
+  groups: DigestGroup[];
+  /** Total number of events included in this export. */
+  eventCount: number;
+}
+
+/**
+ * Build a digest export for events falling within the explicit UTC period
+ * `[period.startMs, period.endMs)` (start-inclusive, end-exclusive).
+ *
+ * Throws `RangeError` when `startMs` or `endMs` is not finite or when
+ * `startMs >= endMs`.
+ */
+export function exportDigest(
+  events: readonly DecodedEvent[],
+  period: { startMs: number; endMs: number },
+): DigestExport {
+  const { startMs, endMs } = period;
+  if (!Number.isFinite(startMs) || !Number.isFinite(endMs)) {
+    throw new RangeError("Digest period boundaries must be finite numbers");
+  }
+  if (startMs >= endMs) {
+    throw new RangeError(
+      `Digest period startMs (${startMs}) must be strictly less than endMs (${endMs})`,
+    );
+  }
+
+  const inPeriod = events.filter((e) => e.at >= startMs && e.at < endMs);
+  const groups = groupDigestEvents(inPeriod);
+
+  return {
+    period: {
+      startMs,
+      endMs,
+      startIso: new Date(startMs).toISOString(),
+      endIso: new Date(endMs).toISOString(),
+    },
+    groups,
+    eventCount: inPeriod.length,
+  };
+}
