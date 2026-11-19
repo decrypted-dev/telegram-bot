@@ -46,6 +46,11 @@ function formatArchiveFilename(index: number, timestamp: number): string {
   return `events-${ts}-${idx}.jsonl`;
 }
 
+/**
+ * Create an append-only event archive that writes the canonical JSONL export
+ * format: UTF-8 encoded, one JSON record per line, delimited by LF (`\n`)
+ * regardless of host operating system.
+ */
 export function createEventArchive(options: EventArchiveOptions): EventArchive {
   const { dir } = options;
   const maxBytes = Math.max(1, options.maxBytes ?? DEFAULT_MAX_BYTES);
@@ -159,6 +164,11 @@ async function listArchiveFiles(dir: string): Promise<string[]> {
   }
 }
 
+/**
+ * Read decoded events from an archive directory in chronological file order.
+ * Accepts both LF (`\n`) and CRLF (`\r\n`) line endings without altering record
+ * identities, skipping blank lines.
+ */
 export async function* readArchive(
   dir: string,
   options: ReadArchiveOptions = {},
@@ -172,7 +182,7 @@ export async function* readArchive(
     const handle = await open(filePath, "r");
     try {
       const content = await handle.readFile({ encoding: "utf8" });
-      const lines = content.split("\n");
+      const lines = content.split(/\r?\n/);
       for (let index = 0; index < lines.length; index += 1) {
         const line = lines[index]!;
         const trimmed = line.trim();

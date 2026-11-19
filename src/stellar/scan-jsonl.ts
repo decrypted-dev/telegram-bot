@@ -12,9 +12,10 @@ export interface ScanJsonlSummaryLine {
 }
 
 /**
- * Format decoded events as JSON Lines (NDJSON): one event line per decoded
- * event followed by a final `{ type: "summary" }` line containing the
- * histogram from {@link eventHistogram}.
+ * Format decoded events as canonical LF (`\n`)-delimited JSON Lines (NDJSON):
+ * one event line per decoded event followed by a final `{ type: "summary" }`
+ * line containing the histogram from {@link eventHistogram}, with a trailing
+ * `\n` regardless of host operating system.
  */
 export function formatScanJsonl(events: readonly DecodedEvent[]): string {
   const lines: string[] = [];
