@@ -73,16 +73,21 @@ test("utcPeriodFor: throws ScheduleParseError on non-finite atMs", () => {
   assert.throws(() => utcPeriodFor(schedule, Number.POSITIVE_INFINITY), ScheduleParseError);
 });
 
-test("exportDigest: records explicit UTC period and filters start-inclusive, end-exclusive", () => {
+test("exportDigest: records explicit UTC period and filters Unix-seconds events [start, end)", () => {
   const schedule = parseSchedule("daily@00:00");
-  const period = utcPeriodFor(schedule, Date.UTC(2026, 2, 10, 12, 0, 0, 0));
+  // 2026-03-10T12:00:00.000Z -> 1773144000s
+  const noonSec = 1773144000;
+  const period = utcPeriodFor(schedule, noonSec * 1000);
+  const startSec = period.startMs / 1000;
+  const endSec = period.endMs / 1000;
 
-  const before = makeEvent(1, period.startMs - 1, 1);
-  const atStart = makeEvent(2, period.startMs, 1);
-  const inside = makeEvent(3, period.startMs + 60_000, 2);
-  const atEnd = makeEvent(4, period.endMs, 2);
+  const beforeStart = makeEvent(1, startSec - 1, 1);
+  const atStart = makeEvent(2, startSec, 1);
+  const atNoon = makeEvent(3, noonSec, 2);
+  const beforeEnd = makeEvent(4, endSec - 1, 2);
+  const atEnd = makeEvent(5, endSec, 2);
 
-  const exported = exportDigest([before, atStart, inside, atEnd], period);
+  const exported = exportDigest([beforeStart, atStart, atNoon, beforeEnd, atEnd], period);
 
   assert.deepEqual(exported.period, {
     startMs: period.startMs,
@@ -90,17 +95,28 @@ test("exportDigest: records explicit UTC period and filters start-inclusive, end
     startIso: "2026-03-10T00:00:00.000Z",
     endIso: "2026-03-11T00:00:00.000Z",
   });
-  assert.equal(exported.eventCount, 2);
+  assert.equal(exported.eventCount, 3);
   assert.equal(exported.groups.length, 2);
   assert.equal(exported.groups[0].key, "market:1");
-  assert.equal(exported.groups[0].events[0].eventId, "evt-2");
+  assert.deepEqual(
+    exported.groups[0].events.map((e) => e.eventId),
+    ["evt-2"],
+  );
   assert.equal(exported.groups[1].key, "market:2");
-  assert.equal(exported.groups[1].events[0].eventId, "evt-3");
+  assert.deepEqual(
+    exported.groups[1].events.map((e) => e.eventId),
+    ["evt-3", "evt-4"],
+  );
 });
 
-test("exportDigest: throws RangeError on invalid period boundaries", () => {
+test("exportDigest: throws RangeError on invalid period boundaries or event timestamps", () => {
   const t = Date.UTC(2026, 0, 1, 0, 0, 0, 0);
   assert.throws(() => exportDigest([], { startMs: t, endMs: t }), RangeError);
   assert.throws(() => exportDigest([], { startMs: t + 1, endMs: t }), RangeError);
   assert.throws(() => exportDigest([], { startMs: Number.NaN, endMs: t }), RangeError);
+  assert.throws(() => exportDigest([], { startMs: 0, endMs: 9e15 }), RangeError);
+
+  const validPeriod = { startMs: t, endMs: t + 86_400_000 };
+  assert.throws(() => exportDigest([makeEvent(1, Number.NaN)], validPeriod), RangeError);
+  assert.throws(() => exportDigest([makeEvent(1, -1)], validPeriod), RangeError);
 });

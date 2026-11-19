@@ -112,13 +112,23 @@ export function exportDigest(
   if (!Number.isFinite(startMs) || !Number.isFinite(endMs)) {
     throw new RangeError("Digest period boundaries must be finite numbers");
   }
+  if (Math.abs(startMs) > 8.64e15 || Math.abs(endMs) > 8.64e15) {
+    throw new RangeError("Digest period boundaries are out of range");
+  }
   if (startMs >= endMs) {
     throw new RangeError(
       `Digest period startMs (${startMs}) must be strictly less than endMs (${endMs})`,
     );
   }
 
-  const inPeriod = events.filter((e) => e.at >= startMs && e.at < endMs);
+  const inPeriod = events.filter((e) => {
+    if (!Number.isFinite(e.at) || e.at < 0) {
+      throw new RangeError(`Invalid event timestamp: ${e.at}`);
+    }
+    // DecodedEvent.at is Unix seconds; period boundaries are epoch milliseconds.
+    const eventMs = e.at * 1000;
+    return eventMs >= startMs && eventMs < endMs;
+  });
   const groups = groupDigestEvents(inPeriod);
 
   return {
