@@ -411,11 +411,26 @@ export function createBot(deps: BotDeps): Bot {
 // Notifier moved to src/notifications/notifier.ts — re-exported here so all
 // existing imports from "bot.js" keep resolving without modification.
 export {
+  classifyPermanentSendError,
   createNotifier,
+  createSendLimiter,
+  DEFAULT_MAX_CONCURRENT_SENDS,
   isMarkdownParseError,
+  isForumTopicClosed,
   notifierSkips,
+  type NotifierOptions,
+  type NotifierRetryOptions,
   type SendExtra,
+  type SendLimiter,
+  type SendLimiterOptions,
+  type SendLimiterShutdownMode,
+  type SendLimiterStats,
 } from "./notifications/notifier.js";
+export {
+  verifyRoutes,
+  type NotificationRoute,
+  type VerifyRoutesOptions,
+} from "./notifications/verify-routes.js";
 
 /** Registers the command list so Telegram's UI offers autocompletion. */
 export async function registerCommands(bot: Bot, config?: BotConfig): Promise<void> {
